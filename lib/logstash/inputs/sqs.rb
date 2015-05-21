@@ -78,12 +78,22 @@ class LogStash::Inputs::SQS < LogStash::Inputs::Threadable
 
   # Time to spend long polling the queue for a message
   config :wait_time_seconds, :validate => :number, :default => 10
+  
+  # Toggle SQS builtin checksum validation
+  config :sqs_verify_checksums, :validate => :boolean, :default => true
 
   public
   def aws_service_endpoint(region)
     return {
         :sqs_endpoint => "sqs.#{region}.amazonaws.com"
     }
+  end
+
+  public
+  def aws_options_hash
+    super.merge({
+      :sqs_verify_checksums => @sqs_verify_checksums
+    })
   end
 
   public
@@ -165,7 +175,7 @@ class LogStash::Inputs::SQS < LogStash::Inputs::Threadable
       sleep sleep_time
       run_with_backoff(max_time, sleep_time * 2, &block)
     rescue AWS::EC2::Errors::InstanceLimitExceeded
-      @logger.warn("AWS::EC2::Errors::InstanceLimitExceeded ... aborting SQS message retreival.")
+      @logger.warn("AWS::EC2::Errors::InstanceLimitExceeded ... aborting SQS message retrieval.")
       return false
     rescue AWS::SQS::Errors::InternalError
       @logger.info("AWS::SQS::Errors::AWS Internal Error ... retrying SQS request with exponential backoff", :queue => @queue, :sleep_time => sleep_time)
